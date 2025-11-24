@@ -1,7 +1,14 @@
 'use client';
 
-import { Settings } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/components/AuthProvider';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const tabs = [
   { id: 'tasks', label: 'タスク', active: true },
@@ -10,6 +17,8 @@ const tabs = [
 ];
 
 export default function Header() {
+  const { user, signOut } = useAuth();
+
   return (
     <header className="bg-[#2d3e50] text-white shadow-md">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -33,13 +42,30 @@ export default function Header() {
               ))}
             </nav>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-[#34495e]"
-          >
-            <Settings className="h-6 w-6" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            {user && (
+              <span className="text-sm text-gray-300 mr-2">
+                {user.email}
+              </span>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-[#34495e]"
+                >
+                  <Settings className="h-6 w-6" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  ログアウト
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
