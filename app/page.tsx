@@ -4,9 +4,13 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Statistics from '@/components/Statistics';
 import TaskList from '@/components/TaskList';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { Task, Category } from '@/types';
+import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 
-export default function Home() {
+function DashboardContent() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([
     { id: 'A', name: 'A', label: 'A', color: 'bg-red-500', totalMinutes: 0 },
@@ -29,84 +33,142 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // サンプルタスクの初期化
+  const supabase = createClient();
+
+  // タスクの読み込み
   useEffect(() => {
-    const sampleTasks: Task[] = [
-      {
-        id: '1',
-        title: '【普通人】健康\n朝を狩りに行く (1)',
-        category: 'A',
-        mode: '暮らし',
-        estimatedMinutes: 5,
-        actualMinutes: 3,
-        startTime: new Date('2024-01-14T03:21:00'),
-        endTime: new Date('2024-01-14T03:24:00'),
-        isCompleted: true,
-        order: 1,
-        userId: 'demo',
-      },
-      {
-        id: '2',
-        title: '【普通人】喜多方\n頭を洗う',
-        category: 'B',
-        mode: '単純作業',
-        estimatedMinutes: 1,
-        actualMinutes: 3,
-        startTime: new Date('2024-01-14T03:24:00'),
-        endTime: new Date('2024-01-14T03:27:00'),
-        isCompleted: true,
-        order: 2,
-        userId: 'demo',
-      },
-      {
-        id: '3',
-        title: '【普通人】健康\n体重を計測して記録する',
-        category: 'A',
-        mode: '単純作業',
-        estimatedMinutes: 1,
-        actualMinutes: 0,
-        startTime: new Date('2024-01-14T03:27:00'),
-        endTime: new Date('2024-01-14T03:27:00'),
-        isCompleted: true,
-        order: 3,
-        userId: 'demo',
-      },
-    ];
-    setTasks(sampleTasks);
-  }, []);
+    if (!user) return;
 
-  const handleAddTask = (task: Omit<Task, 'id' | 'userId'>) => {
-    const newTask: Task = {
-      ...task,
-      id: Date.now().toString(),
-      userId: 'demo',
-    };
-    setTasks([...tasks, newTask]);
-  };
+    const loadTasks = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('task_date', today)
+        .order('task_order', { ascending: true });
 
-  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, ...updates } : task
-    ));
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
-  };
-
-  const handleToggleComplete = (taskId: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const isCompleting = !task.isCompleted;
-        return {
-          ...task,
-          isCompleted: isCompleting,
-          startTime: isCompleting && !task.startTime ? new Date() : task.startTime,
-          endTime: isCompleting ? new Date() : null,
-        };
+      if (error) {
+        console.error('タスクの読み込みエラー:', error);
+        return;
       }
-      return task;
-    }));
+
+      if (data) {
+        const loadedTasks: Task[] = data.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          category: row.category,
+          mode: row.mode,
+          estimatedMinutes: row.estimated_minutes,
+          actualMinutes: row.actual_minutes,
+          startTime: row.start_time ? new Date(row.start_time) : null,
+          endTime: row.end_time ? new Date(row.end_time) : null,
+          isCompleted: row.is_completed,
+          order: row.task_order,
+          userId: row.user_id,
+        }));
+        setTasks(loadedTasks);
+      }
+    };
+
+    loadTasks();
+
+    // リアルタイム更新のサブスクリプション
+    const channel = supabase
+      .channel('tasks_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase]);
+
+  const handleAddTask = async (task: Omit<Task, 'id' | 'userId'>) => {
+    if (!user) return;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const { error } = await supabase.from('tasks').insert({
+      user_id: user.id,
+      title: task.title,
+      category: task.category,
+      mode: task.mode,
+      estimated_minutes: task.estimatedMinutes,
+      actual_minutes: task.actualMinutes,
+      start_time: task.startTime?.toISOString(),
+      end_time: task.endTime?.toISOString(),
+      is_completed: task.isCompleted,
+      task_order: task.order,
+      task_date: today,
+    });
+
+    if (error) {
+      console.error('タスクの追加エラー:', error);
+    }
+  };
+
+  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+    const dbUpdates: any = {};
+    
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.mode !== undefined) dbUpdates.mode = updates.mode;
+    if (updates.estimatedMinutes !== undefined) dbUpdates.estimated_minutes = updates.estimatedMinutes;
+    if (updates.actualMinutes !== undefined) dbUpdates.actual_minutes = updates.actualMinutes;
+    if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime?.toISOString();
+    if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime?.toISOString();
+    if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
+    if (updates.order !== undefined) dbUpdates.task_order = updates.order;
+
+    const { error } = await supabase
+      .from('tasks')
+      .update(dbUpdates)
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('タスクの更新エラー:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('タスクの削除エラー:', error);
+    }
+  };
+
+  const handleToggleComplete = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const isCompleting = !task.isCompleted;
+    const now = new Date();
+
+    await handleUpdateTask(taskId, {
+      isCompleted: isCompleting,
+      startTime: isCompleting && !task.startTime ? now : task.startTime,
+      endTime: isCompleting ? now : null,
+      actualMinutes: isCompleting 
+        ? Math.round((now.getTime() - (task.startTime?.getTime() || now.getTime())) / 60000)
+        : 0,
+    });
   };
 
   return (
@@ -128,5 +190,13 @@ export default function Home() {
         />
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }
