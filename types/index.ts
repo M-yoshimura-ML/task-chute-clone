@@ -11,6 +11,8 @@ export interface Task {
   isCompleted: boolean;
   order: number;
   userId: string;
+  taskDate: Date;
+  notes?: string;
 }
 
 // セッションの型定義
