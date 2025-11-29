@@ -1,15 +1,26 @@
 'use client';
 
 import { Task, Category } from '@/types';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 interface StatisticsProps {
   tasks: Task[];
   categories: Category[];
   currentTime: Date;
   selectedDate: Date;
+  onDateChange: (date: Date) => void;
+  onPreviousDay: () => void;
+  onNextDay: () => void;
+  onToday: () => void;
 }
 
 export default function Statistics({
@@ -17,7 +28,12 @@ export default function Statistics({
   categories,
   currentTime,
   selectedDate,
+  onDateChange,
+  onPreviousDay,
+  onNextDay,
+  onToday,
 }: StatisticsProps) {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   // 統計情報を計算
   const stats = useMemo(() => {
     const completed = tasks.filter(t => t.isCompleted);
@@ -143,19 +159,57 @@ export default function Statistics({
         </Card>
         <Card className="p-4 bg-white">
           <div className="flex items-center justify-between">
-            <button className="text-gray-400 hover:text-gray-600">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onPreviousDay}
+              className="text-gray-400 hover:text-gray-600"
+            >
               前日
-            </button>
+            </Button>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">今日</span>
-              <button className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
-                {formatDate(selectedDate)}
-                <ChevronDown className="h-4 w-4" />
-              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToday}
+                className="text-sm font-medium"
+              >
+                今日
+              </Button>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                  >
+                    {formatDate(selectedDate)}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        onDateChange(date);
+                        setIsCalendarOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-            <button className="text-gray-400 hover:text-gray-600">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onNextDay}
+              className="text-gray-400 hover:text-gray-600"
+            >
               翌日
-            </button>
+            </Button>
           </div>
         </Card>
       </div>

@@ -40,13 +40,15 @@ function DashboardContent() {
     if (!user) return;
 
     const loadTasks = async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const dateString = selectedDate.toISOString().split('T')[0];
+      
+      console.log('タスクを読み込み中...', dateString);
       
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
-        .eq('task_date', today)
+        .eq('task_date', dateString)
         .order('task_order', { ascending: true });
 
       if (error) {
@@ -71,6 +73,7 @@ function DashboardContent() {
           notes: row.notes || '',
         }));
         setTasks(loadedTasks);
+        console.log(`${loadedTasks.length}件のタスクを読み込みました`);
       }
     };
 
@@ -101,7 +104,7 @@ function DashboardContent() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase]);
+  }, [user, supabase, selectedDate]);
 
   const handleAddTask = async (task: Omit<Task, 'id' | 'userId'>) => {
     if (!user) {
@@ -256,6 +259,26 @@ function DashboardContent() {
     });
   };
 
+  const handleDateChange = (newDate: Date) => {
+    setSelectedDate(newDate);
+  };
+
+  const handlePreviousDay = () => {
+    const prevDay = new Date(selectedDate);
+    prevDay.setDate(prevDay.getDate() - 1);
+    setSelectedDate(prevDay);
+  };
+
+  const handleNextDay = () => {
+    const nextDay = new Date(selectedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    setSelectedDate(nextDay);
+  };
+
+  const handleToday = () => {
+    setSelectedDate(new Date());
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -265,6 +288,10 @@ function DashboardContent() {
           categories={categories}
           currentTime={currentTime}
           selectedDate={selectedDate}
+          onDateChange={handleDateChange}
+          onPreviousDay={handlePreviousDay}
+          onNextDay={handleNextDay}
+          onToday={handleToday}
         />
         <TaskList
           tasks={tasks}
