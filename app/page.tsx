@@ -67,6 +67,8 @@ function DashboardContent() {
           isCompleted: row.is_completed,
           order: row.task_order,
           userId: row.user_id,
+          taskDate: new Date(row.task_date),
+          notes: row.notes || '',
         }));
         setTasks(loadedTasks);
       }
@@ -74,7 +76,8 @@ function DashboardContent() {
 
     loadTasks();
 
-    // リアルタイム更新のサブスクリプション
+    // リアルタイム更新のサブスクリプション（オプション）
+    // 楽観的UI更新を使用しているため、必須ではありません
     const channel = supabase
       .channel('tasks_changes')
       .on(
@@ -85,11 +88,15 @@ function DashboardContent() {
           table: 'tasks',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
+          console.log('リアルタイム更新:', payload);
+          // 他のデバイスからの変更を反映
           loadTasks();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('サブスクリプション状態:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -97,11 +104,17 @@ function DashboardContent() {
   }, [user, supabase]);
 
   const handleAddTask = async (task: Omit<Task, 'id' | 'userId'>) => {
-    if (!user) return;
+    if (!user) {
+      console.error('ユーザーが認証されていません');
+      return;
+    }
 
-    const today = new Date().toISOString().split('T')[0];
+    const taskDate = task.taskDate || new Date();
+    const dateString = taskDate.toISOString().split('T')[0];
 
-    const { error } = await supabase.from('tasks').insert({
+    console.log('タスクを追加中...', { task, userId: user.id });
+
+    const { data, error } = await supabase.from('tasks').insert({
       user_id: user.id,
       title: task.title,
       category: task.category,
@@ -112,15 +125,41 @@ function DashboardContent() {
       end_time: task.endTime?.toISOString(),
       is_completed: task.isCompleted,
       task_order: task.order,
-      task_date: today,
-    });
+      task_date: dateString,
+      notes: task.notes || '',
+    }).select();
 
     if (error) {
       console.error('タスクの追加エラー:', error);
+      alert(`タスクの追加に失敗しました: ${error.message}`);
+    } else if (data && data.length > 0) {
+      console.log('タスクが正常に追加されました:', data);
+      // 楽観的UI更新：即座に画面に反映
+      const newTask: Task = {
+        id: data[0].id,
+        title: data[0].title,
+        category: data[0].category,
+        mode: data[0].mode,
+        estimatedMinutes: data[0].estimated_minutes,
+        actualMinutes: data[0].actual_minutes,
+        startTime: data[0].start_time ? new Date(data[0].start_time) : null,
+        endTime: data[0].end_time ? new Date(data[0].end_time) : null,
+        isCompleted: data[0].is_completed,
+        order: data[0].task_order,
+        userId: data[0].user_id,
+        taskDate: new Date(data[0].task_date),
+        notes: data[0].notes || '',
+      };
+      setTasks(prev => [...prev, newTask]);
     }
   };
 
   const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+    // 楽観的UI更新：先に画面を更新
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, ...updates } : task
+    ));
+
     const dbUpdates: any = {};
     
     if (updates.title !== undefined) dbUpdates.title = updates.title;
@@ -132,6 +171,10 @@ function DashboardContent() {
     if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime?.toISOString();
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
     if (updates.order !== undefined) dbUpdates.task_order = updates.order;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.taskDate !== undefined) dbUpdates.task_date = updates.taskDate.toISOString().split('T')[0];
+
+    console.log('タスクを更新中...', { taskId, updates: dbUpdates });
 
     const { error } = await supabase
       .from('tasks')
@@ -140,10 +183,45 @@ function DashboardContent() {
 
     if (error) {
       console.error('タスクの更新エラー:', error);
+      alert(`タスクの更新に失敗しました: ${error.message}`);
+      // エラー時はロールバック
+      const { data } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+      
+      if (data) {
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? {
+            id: data.id,
+            title: data.title,
+            category: data.category,
+            mode: data.mode,
+            estimatedMinutes: data.estimated_minutes,
+            actualMinutes: data.actual_minutes,
+            startTime: data.start_time ? new Date(data.start_time) : null,
+            endTime: data.end_time ? new Date(data.end_time) : null,
+            isCompleted: data.is_completed,
+            order: data.task_order,
+            userId: data.user_id,
+            taskDate: new Date(data.task_date),
+            notes: data.notes || '',
+          } : task
+        ));
+      }
+    } else {
+      console.log('タスクが正常に更新されました');
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
+    // 楽観的UI更新：先に画面から削除
+    const deletedTask = tasks.find(t => t.id === taskId);
+    setTasks(prev => prev.filter(task => task.id !== taskId));
+
+    console.log('タスクを削除中...', taskId);
+
     const { error } = await supabase
       .from('tasks')
       .delete()
@@ -151,6 +229,13 @@ function DashboardContent() {
 
     if (error) {
       console.error('タスクの削除エラー:', error);
+      alert(`タスクの削除に失敗しました: ${error.message}`);
+      // エラー時はロールバック
+      if (deletedTask) {
+        setTasks(prev => [...prev, deletedTask].sort((a, b) => a.order - b.order));
+      }
+    } else {
+      console.log('タスクが正常に削除されました');
     }
   };
 
