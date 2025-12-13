@@ -7,11 +7,13 @@ CREATE TABLE tasks (
   mode TEXT NOT NULL DEFAULT '暮らし',
   estimated_minutes INTEGER NOT NULL DEFAULT 5,
   actual_minutes INTEGER NOT NULL DEFAULT 0,
+  scheduled_start_time TIMESTAMPTZ,
   start_time TIMESTAMPTZ,
   end_time TIMESTAMPTZ,
   is_completed BOOLEAN NOT NULL DEFAULT false,
   task_order INTEGER NOT NULL,
   task_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

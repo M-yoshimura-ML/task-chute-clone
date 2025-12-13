@@ -6,7 +6,8 @@ export interface Task {
   mode: string;
   estimatedMinutes: number;
   actualMinutes: number;
-  startTime: Date | null;
+  scheduledStartTime: Date | null; // 開始予定時刻
+  startTime: Date | null; // 実際の開始時刻
   endTime: Date | null;
   isCompleted: boolean;
   order: number;

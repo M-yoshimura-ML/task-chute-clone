@@ -34,6 +34,7 @@ export default function TaskDetailModal({
   const [mode, setMode] = useState(task.mode);
   const [estimatedMinutes, setEstimatedMinutes] = useState(task.estimatedMinutes);
   const [taskDate, setTaskDate] = useState(task.taskDate);
+  const [scheduledStartTime, setScheduledStartTime] = useState(task.scheduledStartTime);
   const [notes, setNotes] = useState(task.notes || '');
 
   const handleSave = () => {
@@ -43,6 +44,7 @@ export default function TaskDetailModal({
       mode,
       estimatedMinutes,
       taskDate,
+      scheduledStartTime,
       notes,
     });
   };
@@ -164,6 +166,27 @@ export default function TaskDetailModal({
               type="date"
               value={taskDate.toISOString().split('T')[0]}
               onChange={(e) => setTaskDate(new Date(e.target.value))}
+            />
+          </div>
+
+          {/* 開始予定時刻 */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              開始予定時刻
+            </label>
+            <Input
+              type="time"
+              value={scheduledStartTime ? scheduledStartTime.toTimeString().slice(0, 5) : ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const [hours, minutes] = e.target.value.split(':');
+                  const newTime = new Date(taskDate);
+                  newTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                  setScheduledStartTime(newTime);
+                } else {
+                  setScheduledStartTime(null);
+                }
+              }}
             />
           </div>
 

@@ -37,12 +37,12 @@ export default function TaskList({
   onDeleteTask,
   onToggleComplete,
 }: TaskListProps) {
-  const [isAddingNewTask, setIsAddingNewTask] = useState(false);
   const [showNewTaskDetail, setShowNewTaskDetail] = useState(false);
   const [newTaskData, setNewTaskData] = useState({
     title: '',
     estimatedMinutes: 5,
     taskDate: new Date(),
+    scheduledStartTime: null as Date | null,
     notes: '',
     category: 'A',
     mode: '暮らし',
@@ -68,77 +68,31 @@ export default function TaskList({
   }, [tasks]);
 
   const handleStartAddingTask = () => {
-    setIsAddingNewTask(true);
+    // 新規タスクデータを初期化
     setNewTaskData({
       title: '',
       estimatedMinutes: 5,
       taskDate: new Date(),
+      scheduledStartTime: null,
       notes: '',
       category: 'A',
       mode: '暮らし',
     });
-  };
-
-  const handleSaveNewTask = () => {
-    if (!newTaskData.title.trim()) {
-      // タイトルが空の場合はキャンセル
-      setIsAddingNewTask(false);
-      setShowNewTaskDetail(false);
-      return;
-    }
-
-    const newTask: Omit<Task, 'id' | 'userId'> = {
-      title: newTaskData.title,
-      category: newTaskData.category,
-      mode: newTaskData.mode,
-      estimatedMinutes: newTaskData.estimatedMinutes,
-      actualMinutes: 0,
-      startTime: null,
-      endTime: null,
-      isCompleted: false,
-      order: tasks.length + 1,
-      taskDate: newTaskData.taskDate,
-      notes: newTaskData.notes,
-    };
-
-    onAddTask(newTask);
-    setIsAddingNewTask(false);
-    setShowNewTaskDetail(false);
-    setNewTaskData({
-      title: '',
-      estimatedMinutes: 5,
-      taskDate: new Date(),
-      notes: '',
-      category: 'A',
-      mode: '暮らし',
-    });
-  };
-
-  const handleCancelAddingTask = () => {
-    setIsAddingNewTask(false);
-    setShowNewTaskDetail(false);
-    setNewTaskData({
-      title: '',
-      estimatedMinutes: 5,
-      taskDate: new Date(),
-      notes: '',
-      category: 'A',
-      mode: '暮らし',
-    });
-  };
-
-  const handleShowNewTaskDetail = () => {
+    // 直接詳細モーダルを開く
     setShowNewTaskDetail(true);
   };
 
-  const handleNewTaskKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSaveNewTask();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancelAddingTask();
-    }
+  const handleCancelAddingTask = () => {
+    setShowNewTaskDetail(false);
+    setNewTaskData({
+      title: '',
+      estimatedMinutes: 5,
+      taskDate: new Date(),
+      scheduledStartTime: null,
+      notes: '',
+      category: 'A',
+      mode: '暮らし',
+    });
   };
 
   const handleStartTask = (taskId: string) => {
@@ -217,87 +171,20 @@ export default function TaskList({
       </div>
 
       {/* 新規タスク追加ボタン */}
-      {!isAddingNewTask && (
-        <div className="flex items-center px-4 py-2 border-b hover:bg-gray-50">
-          <Button
-            onClick={handleStartAddingTask}
-            variant="ghost"
-            size="sm"
-            className="text-[#3498db] hover:text-[#2980b9] hover:bg-blue-50"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            タスクを追加
-          </Button>
-        </div>
-      )}
-
-      {/* 新規タスク入力行 */}
-      {isAddingNewTask && (
-        <div className="flex items-center px-4 py-3 border-b bg-blue-50">
-          {/* 空のアイコン */}
-          <div className="w-12 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-              <Plus className="h-5 w-5 text-white" />
-            </div>
-          </div>
-
-          {/* タスク名入力 */}
-          <div className="flex-1 min-w-0">
-            <Input
-              value={newTaskData.title}
-              onChange={(e) => setNewTaskData({ ...newTaskData, title: e.target.value })}
-              onKeyDown={handleNewTaskKeyDown}
-              onBlur={handleSaveNewTask}
-              placeholder="タスク名を入力 (Enterで保存、Escでキャンセル)"
-              autoFocus
-              className="h-8 text-sm"
-            />
-          </div>
-
-          {/* 見積時間入力 */}
-          <div className="w-24 text-center">
-            <Input
-              type="number"
-              value={newTaskData.estimatedMinutes}
-              onChange={(e) => setNewTaskData({ ...newTaskData, estimatedMinutes: parseInt(e.target.value) || 0 })}
-              onKeyDown={handleNewTaskKeyDown}
-              className="h-8 text-sm text-center"
-              min="0"
-            />
-          </div>
-
-          {/* 実績時間 */}
-          <div className="w-24 text-center text-sm text-gray-400">
-            0分
-          </div>
-
-          {/* 開始時刻 */}
-          <div className="w-20 text-center text-sm text-gray-400">
-            --:--
-          </div>
-
-          {/* 終了時刻 */}
-          <div className="w-20 text-center text-sm text-gray-400">
-            --:--
-          </div>
-
-          {/* 詳細設定ボタン */}
-          <div className="w-12 flex items-center justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleShowNewTaskDetail}
-              className="h-8 w-8"
-              title="詳細設定"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <div className="flex items-center px-4 py-2 border-b hover:bg-gray-50">
+        <Button
+          onClick={handleStartAddingTask}
+          variant="ghost"
+          size="sm"
+          className="text-[#3498db] hover:text-[#2980b9] hover:bg-blue-50"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          タスクを追加
+        </Button>
+      </div>
 
       {/* タスクリスト */}
-      {tasks.length === 0 && !isAddingNewTask ? (
+      {tasks.length === 0 ? (
         <div className="px-4 py-12 text-center text-gray-500">
           <p className="text-lg mb-2">タスクがありません</p>
           <p className="text-sm">上のボタンからタスクを追加してください</p>
@@ -458,6 +345,7 @@ export default function TaskList({
             mode: newTaskData.mode,
             estimatedMinutes: newTaskData.estimatedMinutes,
             actualMinutes: 0,
+            scheduledStartTime: newTaskData.scheduledStartTime,
             startTime: null,
             endTime: null,
             isCompleted: false,
@@ -468,16 +356,36 @@ export default function TaskList({
           }}
           onClose={() => setShowNewTaskDetail(false)}
           onUpdate={(updates) => {
-            setNewTaskData({
-              ...newTaskData,
-              title: updates.title || newTaskData.title,
-              category: updates.category || newTaskData.category,
-              mode: updates.mode || newTaskData.mode,
-              estimatedMinutes: updates.estimatedMinutes || newTaskData.estimatedMinutes,
-              taskDate: updates.taskDate || newTaskData.taskDate,
-              notes: updates.notes || newTaskData.notes,
-            });
+            // タイトルが空でない場合、タスクを作成
+            if (updates.title && updates.title.trim()) {
+              const newTask: Omit<Task, 'id' | 'userId'> = {
+                title: updates.title,
+                category: updates.category !== undefined ? updates.category : 'A',
+                mode: updates.mode !== undefined ? updates.mode : '暮らし',
+                estimatedMinutes: updates.estimatedMinutes !== undefined ? updates.estimatedMinutes : 5,
+                actualMinutes: 0,
+                scheduledStartTime: updates.scheduledStartTime !== undefined ? updates.scheduledStartTime : null,
+                startTime: null,
+                endTime: null,
+                isCompleted: false,
+                order: tasks.length + 1,
+                taskDate: updates.taskDate !== undefined ? updates.taskDate : new Date(),
+                notes: updates.notes !== undefined ? updates.notes : '',
+              };
+              onAddTask(newTask);
+            }
+            
+            // 状態をリセット
             setShowNewTaskDetail(false);
+            setNewTaskData({
+              title: '',
+              estimatedMinutes: 5,
+              taskDate: new Date(),
+              scheduledStartTime: null,
+              notes: '',
+              category: 'A',
+              mode: '暮らし',
+            });
           }}
           onDelete={() => {
             handleCancelAddingTask();

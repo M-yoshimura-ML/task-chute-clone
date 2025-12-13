@@ -64,6 +64,7 @@ function DashboardContent() {
           mode: row.mode,
           estimatedMinutes: row.estimated_minutes,
           actualMinutes: row.actual_minutes,
+          scheduledStartTime: row.scheduled_start_time ? new Date(row.scheduled_start_time) : null,
           startTime: row.start_time ? new Date(row.start_time) : null,
           endTime: row.end_time ? new Date(row.end_time) : null,
           isCompleted: row.is_completed,
@@ -124,6 +125,7 @@ function DashboardContent() {
       mode: task.mode,
       estimated_minutes: task.estimatedMinutes,
       actual_minutes: task.actualMinutes,
+      scheduled_start_time: task.scheduledStartTime?.toISOString(),
       start_time: task.startTime?.toISOString(),
       end_time: task.endTime?.toISOString(),
       is_completed: task.isCompleted,
@@ -145,6 +147,7 @@ function DashboardContent() {
         mode: data[0].mode,
         estimatedMinutes: data[0].estimated_minutes,
         actualMinutes: data[0].actual_minutes,
+        scheduledStartTime: data[0].scheduled_start_time ? new Date(data[0].scheduled_start_time) : null,
         startTime: data[0].start_time ? new Date(data[0].start_time) : null,
         endTime: data[0].end_time ? new Date(data[0].end_time) : null,
         isCompleted: data[0].is_completed,
@@ -170,6 +173,7 @@ function DashboardContent() {
     if (updates.mode !== undefined) dbUpdates.mode = updates.mode;
     if (updates.estimatedMinutes !== undefined) dbUpdates.estimated_minutes = updates.estimatedMinutes;
     if (updates.actualMinutes !== undefined) dbUpdates.actual_minutes = updates.actualMinutes;
+    if (updates.scheduledStartTime !== undefined) dbUpdates.scheduled_start_time = updates.scheduledStartTime?.toISOString();
     if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime?.toISOString();
     if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime?.toISOString();
     if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted;
@@ -203,6 +207,7 @@ function DashboardContent() {
             mode: data.mode,
             estimatedMinutes: data.estimated_minutes,
             actualMinutes: data.actual_minutes,
+            scheduledStartTime: data.scheduled_start_time ? new Date(data.scheduled_start_time) : null,
             startTime: data.start_time ? new Date(data.start_time) : null,
             endTime: data.end_time ? new Date(data.end_time) : null,
             isCompleted: data.is_completed,
